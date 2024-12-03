@@ -11,6 +11,8 @@ private:
     vector<long long> lli1;
     vector<long long> lli2;
 
+    static const long long BASE = 1000000000000000000LL; // Base for chunking (18 digits)
+
 public:
     unlimited_integer() : s("") {}
 
@@ -32,30 +34,26 @@ public:
         return s;
     }
 
-    void chunkingAdd(const unlimited_integer& s1, const unlimited_integer& s2) {
+    void chunking(const unlimited_integer& num1, const unlimited_integer& num2) {
         lli1.clear();
         lli2.clear();
 
-        int sz1 = s1.s.size();
-        int sz2 = s2.s.size();
+        int sz1 = num1.s.size();
+        int sz2 = num2.s.size();
 
         for (int i = sz1 - 18; i >= -17; i -= 18) {
-            lli1.push_back(stoll(s1.s.substr(max(0, i), min(18, sz1 - max(0, i)))));
+            lli1.push_back(stoll(num1.s.substr(max(0, i), min(18, sz1 - max(0, i)))));
         }
         for (int j = sz2 - 18; j >= -17; j -= 18) {
-            lli2.push_back(stoll(s2.s.substr(max(0, j), min(18, sz2 - max(0, j)))));
+            lli2.push_back(stoll(num2.s.substr(max(0, j), min(18, sz2 - max(0, j)))));
         }
 
         reverse(lli1.begin(), lli1.end());
         reverse(lli2.begin(), lli2.end());
     }
 
-    void chunkingSub(const unlimited_integer& s1, const unlimited_integer& s2) {
-        chunkingAdd(s1, s2); // Chunking logic is the same for addition and subtraction
-    }
-
-    string addOp(unlimited_integer s1, unlimited_integer s2) {
-        chunkingAdd(s1, s2);
+    string addOp(unlimited_integer num1, unlimited_integer num2) {
+        chunking(num1, num2);
 
         vector<long long> result;
         int carry = 0;
@@ -66,20 +64,27 @@ public:
                             (l2 >= 0 ? lli2[l2--] : 0) +
                             carry;
 
-            carry = sum / 1000000000000000000LL;
-            result.push_back(sum % 1000000000000000000LL);
+            carry = sum / BASE;
+            result.push_back(sum % BASE);
         }
 
         reverse(result.begin(), result.end());
         string output;
-        for (auto num : result) {
-            output += fixsize(num);
+        for (size_t i = 0; i < result.size(); ++i) {
+            output += (i == 0 ? to_string(result[i]) : fixsize(result[i]));
         }
         return leadingzero(output);
     }
 
-    string subOp(unlimited_integer s1, unlimited_integer s2) {
-        chunkingSub(s1, s2);
+    string subOp(unlimited_integer num1, unlimited_integer num2) {
+        chunking(num1, num2);
+
+        // Determine if the result is negative
+        bool isNegative = false;
+        if (num1.s.size() < num2.s.size() || (num1.s.size() == num2.s.size() && num1.s < num2.s)) {
+            swap(lli1, lli2);
+            isNegative = true;
+        }
 
         vector<long long> result;
         int borrow = 0;
@@ -89,7 +94,7 @@ public:
             long long val2 = (j >= 0 ? lli2[j] : 0) + borrow;
 
             if (val1 < val2) {
-                val1 += 1000000000000000000LL;
+                val1 += BASE;
                 borrow = 1;
             } else {
                 borrow = 0;
@@ -100,27 +105,29 @@ public:
 
         reverse(result.begin(), result.end());
         string output;
-        for (auto num : result) {
-            output += fixsize(num);
+        for (size_t i = 0; i < result.size(); ++i) {
+            output += (i == 0 ? to_string(result[i]) : fixsize(result[i]));
         }
-        return leadingzero(output);
+        output = leadingzero(output);
+
+        return isNegative ? "-" + output : output;
     }
 
     unlimited_integer& operator=(string s1) {
-        this->s = s1;
+        this->s = leadingzero(s1);
         return *this;
     }
 
-    unlimited_integer operator+(unlimited_integer s1) {
-        unlimited_integer s2;
-        s2.s = addOp(*this, s1);
-        return s2;
+    unlimited_integer operator+(unlimited_integer num) {
+        unlimited_integer res;
+        res.s = addOp(*this, num);
+        return res;
     }
 
-    unlimited_integer operator-(unlimited_integer s1) {
-        unlimited_integer s2;
-        s2.s = subOp(*this, s1);
-        return s2;
+    unlimited_integer operator-(unlimited_integer num) {
+        unlimited_integer res;
+        res.s = subOp(*this, num);
+        return res;
     }
 
     friend ostream& operator<<(ostream& os, const unlimited_integer& unInt);
@@ -134,6 +141,7 @@ ostream& operator<<(ostream& os, const unlimited_integer& unInt) {
 
 istream& operator>>(istream& is, unlimited_integer& unInt) {
     is >> unInt.s;
+    unInt.s = unInt.leadingzero(unInt.s);
     return is;
 }
 
